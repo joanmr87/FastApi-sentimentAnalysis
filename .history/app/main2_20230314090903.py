@@ -6,15 +6,14 @@ from nltk.corpus import stopwords
 from textblob import TextBlob
 import re
 import nltk
-from googletrans import Translator
 
 nltk.download('punkt')
 nltk.download('stopwords')
 
 app = FastAPI()
 
-stp_words = stopwords.words('english')
-translator = Translator()
+stp_words = stopwords.words('spanish')
+
 
 class SentimentRequest(BaseModel):
     fromTimestamp: str
@@ -24,7 +23,7 @@ class SentimentRequest(BaseModel):
 @app.post("/")
 def sentiment_analysis(sentiment_request: SentimentRequest):
     # emails = obtenerEmails(fromTimestamp, toTimestamp, email)
-    emails = ['Hola queria contarte que estoy muy contento, gracias por todo','Hola queria contarte que estoy muy enojado y disconforme']
+    emails = ['hate you', 'love you','te odio']
     now = datetime.datetime.now()
     results = {"reportGeneratedDate": now.strftime("%Y-%m-%d %H:%M:%S"),
                "extractedEmail": sentiment_request.email,
@@ -32,9 +31,7 @@ def sentiment_analysis(sentiment_request: SentimentRequest):
                "emails": []}
 
     for email in emails:
-        translated_emails = translator.translate(email, src='es', dest='en').text
-        print(translated_emails)
-        email_cleaned = email_cleaning(translated_emails)
+        email_cleaned = email_cleaning(email)
         polarity_scores = cal_polarity(email_cleaned)
 
         email_result = {"emailSentDate": "2023-03-03 00:00:00",

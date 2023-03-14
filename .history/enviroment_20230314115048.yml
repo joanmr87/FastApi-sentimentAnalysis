@@ -1,0 +1,13 @@
+name: fastApi
+channels:
+  - conda-forge
+dependencies:
+  - pip
+  - fastapi
+  - uvicorn
+  - nltk
+  - pandas
+  - pydantic
+  - textblob
+  - pip:
+    - nltk==3.6.5
