@@ -1,0 +1,122 @@
+import os
+import imaplib
+from typing import List
+from email.message import Message
+
+def get_credentials():
+    """
+    Read the user and password from an environment variable.
+
+    Args:
+        None
+
+    Returns:
+        Tuple[str, str]: A tuple containing the user and password.
+
+    """
+    user = os.getenv("EMAIL_USER")
+    password = os.getenv("EMAIL_PASSWORD")
+    return user, password
+
+def connect_to_mail_server(imap_url, user, password):
+    """
+    Establish a connection to the IMAP server and log in using the provided credentials.
+
+    Args:
+        imap_url (str): The URL of the IMAP server.
+        user (str): The username for logging in.
+        password (str): The password for logging in.
+
+    Returns:
+        imaplib.IMAP4_SSL: An IMAP4_SSL connection to the mail server.
+
+    """
+    mail = imaplib.IMAP4_SSL(imap_url)
+    mail.login(user, password)
+    return mail
+
+def fetch_emails(mail, from_timestamp, to_timestamp):
+    """
+    Fetch all emails in the INBOX folder and yield them one at a time.
+
+    Args:
+        mail (imaplib.IMAP4_SSL): An IMAP4_SSL connection to the mail server.
+        from_timestamp (str): A string in ISO 8601 format indicating the earliest date from which to fetch emails.
+        to_timestamp (str): A string in ISO 8601 format indicating the latest date from which to fetch emails.
+
+    Raises:
+        ValueError: If the mailbox selection fails.
+
+    """
+    status, messages = mail.select('INBOX')
+    if status != "OK":
+        raise ValueError("Incorrect mail box")
+
+    # Domains to filter by
+    domains = ["patagonian.it", "patagonian.com", "patagoniansys.com"]
+
+    if from_timestamp:
+        # Convert timestamp string to datetime object
+        from_date = datetime.fromisoformat(from_timestamp)
+
+        # Convert datetime object to IMAP-compliant date format
+        from_imap_date = from_date.strftime("%d-%b-%Y")
+
+        # Set search criterion for "since" the specified date
+        criterion_since = f'(SINCE "{from_imap_date}")'
+
+    if to_timestamp:
+        # Convert timestamp string to datetime object
+        to_date = datetime.fromisoformat(to_timestamp)
+
+        # Convert datetime object to IMAP-compliant date format
+        to_imap_date = to_date.strftime("%d-%b-%Y")
+
+        # Set search criterion for "before" the specified date
+        criterion_before = f'(BEFORE "{to_imap_date}")'
+
+    # Combine the search criteria
+    search_criteria = f'{criterion_since} {criterion_before}'
+
+    # Fetch emails using the search criteria
+    _, message_numbers = mail.search(None, search_criteria)
+
+    for num in message_numbers[0].split():
+        res, msg = mail.fetch(num, '(RFC822)')
+        for response in msg:
+            if isinstance(response, tuple):
+                msg_str = response[1].decode('utf-8')
+                email_message = email.message_from_string(msg_str)
+                if any(domain in email_message["from"] for domain in domains):
+                    yield email_message
+
+def format_email_contents(email_message):
+    sentences = []
+    subject = email_message["subject"]
+    body = b""
+    for part in email_message.walk():
+        if part.get_content_type() == 'text/plain':
+            body += part.get_payload(decode=True)
+
+    if body:
+        text = body + subject.encode('utf-8')
+        decoded_text = urllib.parse.unquote(text.decode('utf-8'))
+        translation_table = str.maketrans(
+            "áéíóúñÁÉÍÓÚÑ",
+            "aeiounAEIOUN" )
+        cleaned_text = decoded_text.translate(translation_table)
+
+        # Tokenize the text into sentences
+        raw_sentences = nltk.sent_tokenize(cleaned_text)
+
+        # Filter the sentences with a subject, verb, and complement
+        for raw_sentence in raw_sentences:
+            tokens = nltk.word_tokenize(raw_sentence)
+            tags = nltk.pos_tag(tokens)
+            if any(tag in VERB_TAGS for word, tag in tags):
+                if any(tag in NOUN_TAGS for word, tag in tags):
+                    if any(tag in NOUN_TAGS for word, tag in tags[::-1]):
+                        if len(raw_sentence.strip()) > 0:  # Check if sentence is not empty
+                            sentences.append(raw_sentence)
+
+    return sentences
